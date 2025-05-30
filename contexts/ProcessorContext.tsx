@@ -24,6 +24,8 @@ interface ProcessorContextType {
   retryFailedChallans: () => void;
   retrySpecificChallan: (regNum: string) => void;
   isRetrying: boolean;
+  batchSize: number;
+  setBatchSize: (size: number) => void;
 }
 
 const ProcessorContext = createContext<ProcessorContextType | undefined>(undefined);
@@ -37,6 +39,7 @@ export function ProcessorProvider({ children }: { children: ReactNode }) {
   const [errors, setErrors] = useState<{ regNum: string; message: string }[]>([]);
   const [currentBatchNumbers, setCurrentBatchNumbers] = useState<string[]>([]);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [batchSize, setBatchSize] = useState(2);
 
   // Calculate total number of challans found
   const challansFound = Object.values(challanData).reduce((total, data) => {
@@ -116,8 +119,7 @@ export function ProcessorProvider({ children }: { children: ReactNode }) {
     setErrors([]);
     
     try {
-      // Process in batches of 5
-      const batchSize = 2;
+      // Process in batches using configurable batch size
       for (let i = 0; i < registrationNumbers.length; i += batchSize) {
         const batch = registrationNumbers.slice(i, i + batchSize);
         await processBatch(batch);
@@ -136,7 +138,7 @@ export function ProcessorProvider({ children }: { children: ReactNode }) {
     } finally {
       setProcessing(false);
     }
-  }, [processing, registrationNumbers, processBatch, toast]);
+  }, [processing, registrationNumbers, batchSize, processBatch, toast]);
 
   const retrySpecificChallan = useCallback(async (regNum: string) => {
     if (processing || isRetrying) return;
@@ -175,8 +177,7 @@ export function ProcessorProvider({ children }: { children: ReactNode }) {
     setErrors(prev => prev.filter(error => !failedRegNums.includes(error.regNum)));
     
     try {
-      // Process failed registration numbers in batches
-      const batchSize = 5;
+      // Process failed registration numbers in batches using configurable batch size
       for (let i = 0; i < failedRegNums.length; i += batchSize) {
         const batch = failedRegNums.slice(i, i + batchSize);
         await processBatch(batch);
@@ -206,7 +207,7 @@ export function ProcessorProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsRetrying(false);
     }
-  }, [processing, isRetrying, errors, processBatch, toast]);
+  }, [processing, isRetrying, errors, batchSize, processBatch, toast]);
 
   return (
     <ProcessorContext.Provider
@@ -224,6 +225,8 @@ export function ProcessorProvider({ children }: { children: ReactNode }) {
         retryFailedChallans,
         retrySpecificChallan,
         isRetrying,
+        batchSize,
+        setBatchSize,
       }}
     >
       {children}
