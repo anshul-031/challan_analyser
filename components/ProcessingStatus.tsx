@@ -3,9 +3,10 @@
 import { useProcessor } from '@/contexts/ProcessorContext';
 import { Progress } from '@/components/ui/progress';
 import { Card } from '@/components/ui/card';
-import { CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Loader2, RotateCcw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 
 export function ProcessingStatus() {
   const { 
@@ -14,7 +15,10 @@ export function ProcessingStatus() {
     registrationNumbers,
     challansFound,
     errors,
-    currentBatchNumbers
+    currentBatchNumbers,
+    retryFailedChallans,
+    retrySpecificChallan,
+    isRetrying
   } = useProcessor();
 
   // Calculate progress percentage
@@ -54,12 +58,18 @@ export function ProcessingStatus() {
         </Card>
       </div>
       
-      {processing && currentBatchNumbers.length > 0 && (
+      {(processing || isRetrying) && currentBatchNumbers.length > 0 && (
         <div className="space-y-2">
-          <p className="text-sm font-medium">Currently Processing:</p>
+          <p className="text-sm font-medium">
+            {isRetrying ? 'Retrying Failed Vehicles:' : 'Currently Processing:'}
+          </p>
           <div className="flex flex-wrap gap-2">
             {currentBatchNumbers.map((regNum, idx) => (
-              <Badge key={idx} variant="secondary" className="animate-pulse">
+              <Badge 
+                key={idx} 
+                variant={isRetrying ? "destructive" : "secondary"} 
+                className="animate-pulse"
+              >
                 <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                 {regNum}
               </Badge>
@@ -70,13 +80,42 @@ export function ProcessingStatus() {
       
       {errors.length > 0 && (
         <div className="space-y-2">
-          <p className="text-sm font-medium">Errors:</p>
-          <ScrollArea className="h-[80px] rounded-md border">
-            <div className="p-2 space-y-1">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">Errors:</p>
+            {!processing && !isRetrying && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={retryFailedChallans}
+                disabled={isRetrying}
+                className="gap-2"
+                title="Retry all failed vehicles at once"
+              >
+                <RotateCcw className="h-3 w-3" />
+                Retry All ({errors.length})
+              </Button>
+            )}
+          </div>
+          <ScrollArea className="h-[120px] rounded-md border">
+            <div className="p-2 space-y-2">
               {errors.map((error, idx) => (
-                <div key={idx} className="flex text-xs text-destructive items-start gap-2 p-1">
-                  <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
-                  <span>{error.regNum}: {error.message}</span>
+                <div key={idx} className="flex items-start gap-2 p-2 text-xs bg-destructive/5 rounded border">
+                  <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-destructive" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-destructive">{error.regNum}</div>
+                    <div className="text-muted-foreground truncate">{error.message}</div>
+                  </div>
+                  {!processing && !isRetrying && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => retrySpecificChallan(error.regNum)}
+                      className="h-6 px-2 text-xs hover:bg-orange-100"
+                      title={`Retry ${error.regNum}`}
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
@@ -84,10 +123,17 @@ export function ProcessingStatus() {
         </div>
       )}
       
-      {!processing && processedCount > 0 && (
+      {!processing && !isRetrying && processedCount > 0 && (
         <div className="flex items-center justify-center p-2 text-sm text-primary bg-primary/10 rounded-md">
           <CheckCircle2 className="h-4 w-4 mr-2" />
           Processing complete
+        </div>
+      )}
+      
+      {isRetrying && (
+        <div className="flex items-center justify-center p-2 text-sm text-orange-600 bg-orange-50 rounded-md">
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          Retrying failed vehicles...
         </div>
       )}
     </div>

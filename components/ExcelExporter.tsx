@@ -9,7 +9,7 @@ import { format } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export function ExcelExporter() {
-  const { challanData, processing, processedCount, registrationNumbers, isRetrying } = useProcessor();
+  const { challanData, processing, processedCount, registrationNumbers, isRetrying, errors } = useProcessor();
   const [exporting, setExporting] = useState(false);
 
   const handleExport = async () => {
@@ -86,13 +86,20 @@ export function ExcelExporter() {
       const summaryData = [
         { Field: 'Export Date', Value: format(new Date(), 'yyyy-MM-dd HH:mm:ss') },
         { Field: 'Export Status', Value: processing ? 'Partial (Processing ongoing)' : 'Complete' },
-        { Field: 'Total Vehicles Processed', Value: Object.keys(challanData).length },
+        { Field: 'Total Vehicles Requested', Value: registrationNumbers.length },
+        { Field: 'Total Vehicles Processed Successfully', Value: Object.keys(challanData).length },
+        { Field: 'Total Vehicles Failed', Value: errors.length },
         { Field: 'Total Challans Found', Value: rows.length },
         { Field: 'Pending Challans', Value: rows.filter(row => row.Status === 'Pending').length },
         { Field: 'Disposed Challans', Value: rows.filter(row => row.Status === 'Disposed').length },
         { Field: '', Value: '' }, // Empty row
-        { Field: 'Vehicle Registration Numbers', Value: '' },
-        ...Object.keys(challanData).map(regNum => ({ Field: regNum, Value: '' }))
+        { Field: 'Successfully Processed Vehicles', Value: '' },
+        ...Object.keys(challanData).map(regNum => ({ Field: regNum, Value: '' })),
+        ...(errors.length > 0 ? [
+          { Field: '', Value: '' }, // Empty row
+          { Field: 'Failed Vehicles (can be retried)', Value: '' },
+          ...errors.map(error => ({ Field: error.regNum, Value: error.message }))
+        ] : [])
       ];
       
       const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
@@ -160,6 +167,7 @@ export function ExcelExporter() {
               const disposedCount = data.Disposed_data?.length || 0;
               return total + pendingCount + disposedCount;
             }, 0)} total challans
+            {errors.length > 0 && ` • ${errors.length} failed`}
             {processing && ` • Processing in progress...`}
           </p>
         </div>
@@ -189,6 +197,17 @@ export function ExcelExporter() {
           <AlertDescription>
             Processing is in progress. You can export the current data at any time - 
             the export will include all challans that have been processed so far.
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {errors.length > 0 && !processing && (
+        <Alert className="bg-yellow-50 border-yellow-200">
+          <AlertTitle>Some Vehicles Failed to Process</AlertTitle>
+          <AlertDescription>
+            {errors.length} vehicle{errors.length === 1 ? '' : 's'} failed to fetch challan data. 
+            You can retry these failed vehicles from the Processing Status section above, 
+            or export the current data without the failed vehicles.
           </AlertDescription>
         </Alert>
       )}

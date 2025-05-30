@@ -21,6 +21,9 @@ interface ProcessorContextType {
   challansFound: number;
   errors: { regNum: string; message: string }[];
   currentBatchNumbers: string[];
+  retryFailedChallans: () => void;
+  retrySpecificChallan: (regNum: string) => void;
+  isRetrying: boolean;
 }
 
 const ProcessorContext = createContext<ProcessorContextType | undefined>(undefined);
@@ -33,6 +36,7 @@ export function ProcessorProvider({ children }: { children: ReactNode }) {
   const [challanData, setChallanData] = useState<ChallanData>({});
   const [errors, setErrors] = useState<{ regNum: string; message: string }[]>([]);
   const [currentBatchNumbers, setCurrentBatchNumbers] = useState<string[]>([]);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   // Calculate total number of challans found
   const challansFound = Object.values(challanData).reduce((total, data) => {
@@ -134,6 +138,76 @@ export function ProcessorProvider({ children }: { children: ReactNode }) {
     }
   }, [processing, registrationNumbers, processBatch, toast]);
 
+  const retrySpecificChallan = useCallback(async (regNum: string) => {
+    if (processing || isRetrying) return;
+    
+    setIsRetrying(true);
+    
+    // Remove the specific error for this registration number
+    setErrors(prev => prev.filter(error => error.regNum !== regNum));
+    
+    try {
+      await processBatch([regNum]);
+      
+      toast({
+        title: "Retry successful",
+        description: `Successfully retried ${regNum}`,
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Retry failed",
+        description: `Failed to retry ${regNum}: ${error instanceof Error ? error.message : "Unknown error"}`,
+      });
+    } finally {
+      setIsRetrying(false);
+    }
+  }, [processing, isRetrying, processBatch, toast]);
+
+  const retryFailedChallans = useCallback(async () => {
+    if (processing || isRetrying || errors.length === 0) return;
+    
+    setIsRetrying(true);
+    const failedRegNums = errors.map(error => error.regNum);
+    const initialErrorCount = errors.length;
+    
+    // Clear existing errors for the registration numbers we're retrying
+    setErrors(prev => prev.filter(error => !failedRegNums.includes(error.regNum)));
+    
+    try {
+      // Process failed registration numbers in batches
+      const batchSize = 5;
+      for (let i = 0; i < failedRegNums.length; i += batchSize) {
+        const batch = failedRegNums.slice(i, i + batchSize);
+        await processBatch(batch);
+      }
+      
+      // Check how many errors remain after retry
+      const remainingErrors = errors.filter(error => failedRegNums.includes(error.regNum)).length;
+      const successfulRetries = initialErrorCount - remainingErrors;
+      
+      if (remainingErrors === 0) {
+        toast({
+          title: "Retry successful",
+          description: `All ${failedRegNums.length} failed vehicles were successfully processed!`,
+        });
+      } else {
+        toast({
+          title: "Retry complete",
+          description: `${successfulRetries} vehicles succeeded, ${remainingErrors} still failed. You can retry again if needed.`,
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Retry failed",
+        description: error instanceof Error ? error.message : "Unknown error occurred during retry",
+      });
+    } finally {
+      setIsRetrying(false);
+    }
+  }, [processing, isRetrying, errors, processBatch, toast]);
+
   return (
     <ProcessorContext.Provider
       value={{
@@ -147,6 +221,9 @@ export function ProcessorProvider({ children }: { children: ReactNode }) {
         challansFound,
         errors,
         currentBatchNumbers,
+        retryFailedChallans,
+        retrySpecificChallan,
+        isRetrying,
       }}
     >
       {children}
