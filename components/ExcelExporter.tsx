@@ -25,7 +25,7 @@ export function ExcelExporter() {
         // For pending challans
         if (data.Pending_data && data.Pending_data.length > 0) {
           data.Pending_data.forEach((challan: any) => {
-            rows.push({
+            const rowData: any = {
               "Registration Number": regNum,
               "Status": "Pending",
               "Challan No": challan.challan_no,
@@ -45,14 +45,26 @@ export function ExcelExporter() {
               "Sent To Court On": challan.sent_to_court_on,
               "Sent To Virtual Court": challan.sent_to_virtual_court,
               "RTO District Name": challan.rto_distric_name
-            });
+            };
+
+            // Add offense details if available
+            if (challan.offence_details && challan.offence_details.length > 0) {
+              // Combine multiple offenses into a single field
+              rowData["Offense Acts"] = challan.offence_details.map((offense: any) => offense.act).filter(Boolean).join(", ") || "N/A";
+              rowData["Offense Names"] = challan.offence_details.map((offense: any) => offense.name).filter(Boolean).join(", ") || "N/A";
+            } else {
+              rowData["Offense Acts"] = "N/A";
+              rowData["Offense Names"] = "N/A";
+            }
+            
+            rows.push(rowData);
           });
         }
         
         // For disposed challans
         if (data.Disposed_data && data.Disposed_data.length > 0) {
           data.Disposed_data.forEach((challan: any) => {
-            rows.push({
+            const rowData: any = {
               "Registration Number": regNum,
               "Status": "Disposed",
               "Challan No": challan.challan_no,
@@ -74,7 +86,19 @@ export function ExcelExporter() {
               "RTO District Name": challan.rto_distric_name,
               "Receipt No": challan.receipt_no,
               "Received Amount": challan.received_amount
-            });
+            };
+
+            // Add offense details if available
+            if (challan.offence_details && challan.offence_details.length > 0) {
+              // Combine multiple offenses into a single field
+              rowData["Offense Acts"] = challan.offence_details.map((offense: any) => offense.act).filter(Boolean).join(", ") || "N/A";
+              rowData["Offense Names"] = challan.offence_details.map((offense: any) => offense.name).filter(Boolean).join(", ") || "N/A";
+            } else {
+              rowData["Offense Acts"] = "N/A";
+              rowData["Offense Names"] = "N/A";
+            }
+            
+            rows.push(rowData);
           });
         }
       });

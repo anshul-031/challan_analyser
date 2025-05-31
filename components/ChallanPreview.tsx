@@ -132,7 +132,8 @@ export function ChallanPreview() {
                       'Owner Name', 'Name Of Violator', 'Department', 'State Code',
                       'Amount Of Fine Imposed', 'Court Address', 'Court Name',
                       'Date Of Proceeding', 'Sent To Court On', 'Sent To Virtual Court',
-                      'RTO District Name', 'Receipt No (Disposed only)', 'Received Amount (Disposed only)'
+                      'RTO District Name', 'Receipt No (Disposed only)', 'Received Amount (Disposed only)',
+                      'Offense Acts', 'Offense Names'
                     ].map((field, index) => (
                       <Badge key={index} variant="secondary" className="mr-2 mb-2">
                         {field}
@@ -157,7 +158,7 @@ export function ChallanPreview() {
                       <TableHead>Date & Time</TableHead>
                       <TableHead>Place</TableHead>
                       <TableHead>Fine Amount</TableHead>
-                      <TableHead>Owner Name</TableHead>
+                      <TableHead>Offense</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -172,8 +173,13 @@ export function ChallanPreview() {
                         <TableCell>{challan.challan_no || 'N/A'}</TableCell>
                         <TableCell>{challan.challan_date_time || 'N/A'}</TableCell>
                         <TableCell>{challan.challan_place || 'N/A'}</TableCell>
-                        <TableCell>{challan.amount_of_fine_imposed || 'N/A'}</TableCell>
-                        <TableCell>{challan.owner_name || 'N/A'}</TableCell>
+                        <TableCell>{challan.amount_of_fine_imposed || challan.fine_imposed || 'N/A'}</TableCell>
+                        <TableCell>
+                          {challan.offence_details && challan.offence_details.length > 0 
+                            ? challan.offence_details[0].name 
+                            : 'N/A'}
+                          {challan.offence_details && challan.offence_details.length > 1 && '...'}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
