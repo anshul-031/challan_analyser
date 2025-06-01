@@ -73,10 +73,28 @@ export function ProcessorProvider({ children }: { children: ReactNode }) {
         throw new Error("Failed to fetch challan data");
       }
       
-      const responseData = data.response[0].response.data;
+      const responseData = data.response[0].response;
+      
+      // Handle case where no records are found (code: "305")
+      if (responseData.code === "305" || responseData.message === "No Records Found!") {
+        return {
+          Pending_data: [],
+          Disposed_data: []
+        };
+      }
+      
+      // Handle normal case where data exists
+      if (responseData.data) {
+        return {
+          Pending_data: responseData.data.Pending_data || [],
+          Disposed_data: responseData.data.Disposed_data || []
+        };
+      }
+      
+      // Fallback for unexpected response structure
       return {
-        Pending_data: responseData.Pending_data || [],
-        Disposed_data: responseData.Disposed_data || []
+        Pending_data: [],
+        Disposed_data: []
       };
     } catch (error) {
       throw new Error(error instanceof Error ? error.message : "Unknown error");
